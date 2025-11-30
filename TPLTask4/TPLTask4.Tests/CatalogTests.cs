@@ -19,7 +19,7 @@ public class CatalogTests
         logger.Verify(x => x("A"), Times.Once);
         logger.Verify(x => x("B"), Times.Once);
 
-        var sequence = logger.Invocations.Select(i => i.Arguments[0].ToString()).ToArray();
+        var sequence = logger.Invocations.Select(i => i.Arguments.First().ToString()).ToArray();
         Assert.Equal(new[] { "A", "B" }, sequence);
     }
 
@@ -36,7 +36,7 @@ public class CatalogTests
         catalog.Sort();
         catalog.Show();
 
-        var logged = logger.Invocations.Select(i => i.Arguments[0].ToString()).ToArray();
+        var logged = logger.Invocations.Select(i => i.Arguments.First().ToString()).ToArray();
         Assert.Equal(new[] { "alpha", "Bravo", "delta" }, logged);
     }
 
@@ -64,6 +64,182 @@ public class CatalogTests
         var catalog = new Catalog(_ => { });
 
         catalog.Sort();
+    }
+
+    [Fact]
+    public void Sort_EmptyCatalog_ShouldNotCallLogger()
+    {
+        var logger = new Mock<Action<string>>();
+        var catalog = new Catalog(logger.Object);
+
+        catalog.Sort();
+        catalog.Show();
+
+        logger.Verify(x => x(It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public void Sort_OneItem_ShouldKeepSingleItem()
+    {
+        var logger = new Mock<Action<string>>();
+        var catalog = new Catalog(logger.Object);
+
+        catalog.Add("only");
+
+        catalog.Sort();
+        catalog.Show();
+
+        var logged = logger.Invocations.Select(i => i.Arguments.First().ToString()).ToArray();
+
+        Assert.Single(logged);
+        Assert.Equal("only", logged.First());
+    }
+
+    [Fact]
+    public void Sort_TwoItems_AlreadySorted_ShouldKeepOrder()
+    {
+        var logger = new Mock<Action<string>>();
+        var catalog = new Catalog(logger.Object);
+
+        catalog.Add("alpha");
+        catalog.Add("bravo");
+
+        catalog.Sort();
+        catalog.Show();
+
+        var logged = logger.Invocations.Select(i => i.Arguments.First().ToString()).ToArray();
+
+        Assert.Equal(new[] { "alpha", "bravo" }, logged);
+    }
+
+    [Fact]
+    public void Sort_TwoItems_Reversed_ShouldSwapToAscending()
+    {
+        var logger = new Mock<Action<string>>();
+        var catalog = new Catalog(logger.Object);
+
+        catalog.Add("bravo");
+        catalog.Add("alpha");
+
+        catalog.Sort();
+        catalog.Show();
+
+        var logged = logger.Invocations.Select(i => i.Arguments.First().ToString()).ToArray();
+        Assert.Equal(new[] { "alpha", "bravo" }, logged);
+    }
+
+    [Fact]
+    public void Sort_TwoItems_DifferentCasing_ShouldSortIgnoreCase()
+    {
+        var logger = new Mock<Action<string>>();
+        var catalog = new Catalog(logger.Object);
+
+        catalog.Add("Bravo");
+        catalog.Add("alpha");
+
+        catalog.Sort();
+        catalog.Show();
+
+        var logged = logger.Invocations.Select(i => i.Arguments.First().ToString()).ToArray();
+        Assert.Equal(new[] { "alpha", "Bravo" }, logged);
+    }
+
+    [Fact]
+    public void Sort_ItemsWithSameValue_ShouldNotLoseOrDuplicateItems()
+    {
+        var logger = new Mock<Action<string>>();
+        var catalog = new Catalog(logger.Object);
+
+        catalog.Add("same");
+        catalog.Add("same");
+        catalog.Add("same");
+
+        catalog.Sort();
+        catalog.Show();
+
+        var logged = logger.Invocations.Select(i => i.Arguments.First().ToString()).ToArray();
+
+        Assert.Equal(3, logged.Length);
+        Assert.All(logged, v => Assert.Equal("same", v));
+    }
+
+    [Fact]
+    public void Sort_ItemsWithSameValueDifferentCase_ShouldTreatThemAsEqual()
+    {
+        var logger = new Mock<Action<string>>();
+        var catalog = new Catalog(logger.Object);
+
+        catalog.Add("Alpha");
+        catalog.Add("alpha");
+        catalog.Add("ALPHA");
+
+        catalog.Sort();
+        catalog.Show();
+
+        var logged = logger.Invocations.Select(i => i.Arguments.First().ToString()).ToArray();
+
+        Assert.Equal(3, logged.Length);
+        Assert.Contains("Alpha", logged);
+        Assert.Contains("alpha", logged);
+        Assert.Contains("ALPHA", logged);
+    }
+
+    [Fact]
+    public void Sort_AlreadySortedManyItems_ShouldKeepOrder()
+    {
+        var logger = new Mock<Action<string>>();
+        var catalog = new Catalog(logger.Object);
+
+        catalog.Add("delta");
+        catalog.Add("charlie");
+        catalog.Add("bravo");
+        catalog.Add("alpha");
+
+        catalog.Sort();
+        catalog.Show();
+
+        var logged = logger.Invocations.Select(i => i.Arguments.First().ToString()).ToArray();
+
+        Assert.Equal(new[] { "alpha", "bravo", "charlie", "delta" }, logged);
+    }
+
+    [Fact]
+    public void Sort_ReverseSortedManyItems_ShouldBeSortedAscending()
+    {
+        var logger = new Mock<Action<string>>();
+        var catalog = new Catalog(logger.Object);
+
+        catalog.Add("alpha");
+        catalog.Add("bravo");
+        catalog.Add("charlie");
+        catalog.Add("delta");
+
+        catalog.Sort();
+        catalog.Show();
+
+        var logged = logger.Invocations.Select(i => i.Arguments.First().ToString()).ToArray();
+
+        Assert.Equal(new[] { "alpha", "bravo", "charlie", "delta" }, logged);
+    }
+
+    [Fact]
+    public void Sort_MixedOrderWithDuplicates_ShouldSortAndPreserveCount()
+    {
+        var logger = new Mock<Action<string>>();
+        var catalog = new Catalog(logger.Object);
+
+        catalog.Add("beta");
+        catalog.Add("alpha");
+        catalog.Add("beta");
+        catalog.Add("gamma");
+
+        catalog.Sort();
+        catalog.Show();
+
+        var logged = logger.Invocations.Select(i => i.Arguments.First().ToString()).ToArray();
+
+        Assert.Equal(4, logged.Length);
+        Assert.Equal(new[] { "alpha", "beta", "beta", "gamma" }, logged);
     }
 
     [Fact]
