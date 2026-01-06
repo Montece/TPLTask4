@@ -2,19 +2,25 @@
 
 internal sealed class Catalog : IDisposable
 {
-    private CatalogElement? Head { get; set; }
-
     private bool _disposed;
     private bool _isSorting;
     private Thread? _sortThread;
     private readonly Action<string> _logMethod;
     private readonly ManualResetEventSlim _sortEvent = new(false);
+    private readonly CatalogElement _headSentinel;
+    private readonly CatalogElement _tailSentinel;
 
     public Catalog(Action<string> logMethod)
     {
         ArgumentNullException.ThrowIfNull(logMethod);
 
         _logMethod = logMethod;
+        
+        _headSentinel = new CatalogElement(string.Empty);
+        _tailSentinel = new CatalogElement(string.Empty);
+        
+        _headSentinel.Next = _tailSentinel;
+        _tailSentinel.Previous = _headSentinel;
     }
 
     public void Show()
@@ -37,16 +43,26 @@ internal sealed class Catalog : IDisposable
 
         var newElement = new CatalogElement(newValue);
 
-        if (Head is null)
+        _headSentinel.Lock();
+        var realElement = _headSentinel.Next;
+        realElement?.Lock();
+        
+        try
         {
-            Head = newElement;
+            newElement.Next = realElement;
+            newElement.Previous = _headSentinel;
+            
+            if (realElement is not null)
+            {
+                realElement.Previous = newElement;
+            }
+            
+            _headSentinel.Next = newElement;
         }
-        else
+        finally
         {
-            Head.Previous = newElement;
-            newElement.Previous = null;
-            newElement.Next = Head;
-            Head = newElement;
+            realElement?.Unlock();
+            _headSentinel.Unlock();
         }
     }
 
@@ -54,69 +70,104 @@ internal sealed class Catalog : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, typeof(Catalog));
 
-        if (Head is null)
-        {
-            return;
-        }
-
         var sorted = false;
 
         while (!sorted)
         {
             sorted = true;
 
-            var current = Head;
-
-            while (current?.Next is not null)
+            _headSentinel.Lock();
+            CatalogElement? current;
+            
+            try
             {
-                var next = current.Next;
-
-                if (next is null)
+                current = _headSentinel.Next;
+                
+                if (current == _tailSentinel || current is null)
                 {
-                    break;
+                    return;
+                }
+                
+                current.Lock();
+            }
+            finally
+            {
+                _headSentinel.Unlock();
+            }
+
+            while (current is not null && current != _tailSentinel)
+            {
+                CatalogElement? next;
+                
+                try
+                {
+                    next = current.Next;
+                    
+                    if (next == _tailSentinel || next is null)
+                    {
+                        current.Unlock();
+                        break;
+                    }
+                    
+                    next.Lock();
+                }
+                catch
+                {
+                    current.Unlock();
+                    throw;
                 }
 
-                if (string.Compare(current.Value, next.Value, StringComparison.CurrentCultureIgnoreCase) > 0)
+                try
                 {
-                    var lockedObjects = new[]
+                    if (string.Compare(current.Value, next.Value, StringComparison.CurrentCultureIgnoreCase) > 0)
                     {
-                        current,
-                        current.Previous,
-                        next,
-                        next.Next
-                    };
+                        var previous = current.Previous;
+                        var nextNext = next.Next;
+                        
+                        previous?.Lock();
+                        if (nextNext != _tailSentinel && nextNext is not null)
+                        {
+                            nextNext.Lock();
+                        }
 
-                    Array.ForEach(lockedObjects, x => x?.Lock());
+                        try
+                        {
+                            next.Previous = previous;
+                            next.Next = current;
+                            current.Previous = next;
+                            current.Next = nextNext;
 
-                    var previous = current.Previous;
-                    var nextNext = next.Next;
+                            if (nextNext != _tailSentinel && nextNext is not null)
+                            {
+                                nextNext.Previous = current;
+                            }
 
-                    next.Previous = previous;
-                    next.Next = current;
-                    current.Previous = next;
-                    current.Next = nextNext;
+                            previous!.Next = next;
 
-                    if (nextNext is not null)
-                    {
-                        nextNext.Previous = current;
-                    }
-
-                    if (previous is not null)
-                    {
-                        previous.Next = next;
+                            sorted = false;
+                        }
+                        finally
+                        {
+                            if (nextNext != _tailSentinel && nextNext is not null)
+                            {
+                                nextNext.Unlock();
+                            }
+                            previous?.Unlock();
+                        }
+                        
+                        next.Unlock();
                     }
                     else
                     {
-                        Head = next;
+                        current.Unlock();
+                        current = next;
                     }
-
-                    sorted = false;
-
-                    Array.ForEach(lockedObjects, x => x?.Unlock());
                 }
-                else
+                catch
                 {
-                    current = next;
+                    next.Unlock();
+                    current.Unlock();
+                    throw;
                 }
             }
         }
@@ -126,17 +177,28 @@ internal sealed class Catalog : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, typeof(Catalog));
 
-        var cursor = Head;
+        _headSentinel.Lock();
+        CatalogElement? cursor;
+        
+        try
+        {
+            cursor = _headSentinel.Next;
+        }
+        finally
+        {
+            _headSentinel.Unlock();
+        }
 
-        while (cursor is not null)
+        while (cursor is not null && cursor != _tailSentinel)
         {
             cursor.Lock();
 
             yield return cursor;
 
+            var next = cursor.Next;
             cursor.Unlock();
 
-            cursor = cursor.Next;
+            cursor = next;
         }
     }
 
@@ -202,9 +264,9 @@ internal sealed class Catalog : IDisposable
         
         _sortEvent.Dispose();
 
-        var cursor = Head;
+        var cursor = _headSentinel.Next;
 
-        while (cursor is not null)
+        while (cursor is not null && cursor != _tailSentinel)
         {
             var next = cursor.Next;
 
@@ -212,5 +274,8 @@ internal sealed class Catalog : IDisposable
 
             cursor = next;
         }
+        
+        _headSentinel.Dispose();
+        _tailSentinel.Dispose();
     }
 }
