@@ -2,39 +2,91 @@
 
 namespace TPLTask4.Tests;
 
-public class CatalogElementTests
+public sealed class CatalogElementTests
 {
     [Fact]
     public void Ctor_ShouldSetValue()
     {
-        var element = new CatalogElement("hello");
-        Assert.Equal("hello", element.Value);
+        CatalogElement? head = null;
+        CatalogElement? tail = null;
+
+        try
+        {
+            CatalogElement.CreateSentinels(out head, out tail);
+
+            using var element = new CatalogElement("hello", head, tail);
+            Assert.Equal("hello", element.Value);
+        }
+        finally
+        {
+            head?.Dispose();
+            tail?.Dispose();
+        }
     }
 
     [Fact]
     public void LockUnlock_ShouldNotThrow()
     {
-        var element = new CatalogElement("x");
+        CatalogElement? head = null;
+        CatalogElement? tail = null;
 
-        element.Lock();
-        element.Unlock();
+        try
+        {
+            CatalogElement.CreateSentinels(out head, out tail);
+
+            using var element = new CatalogElement("x", head, tail);
+
+            element.Lock();
+            element.Unlock();
+        }
+        finally
+        {
+            head?.Dispose();
+            tail?.Dispose();
+        }
     }
 
     [Fact]
     public void Lock_AfterDispose_ShouldThrow()
     {
-        var element = new CatalogElement("x");
-        element.Dispose();
+        CatalogElement? head = null;
+        CatalogElement? tail = null;
 
-        Assert.Throws<ObjectDisposedException>(element.Lock);
+        try
+        {
+            CatalogElement.CreateSentinels(out head, out tail);
+
+            var element = new CatalogElement("x", head, tail);
+            element.Dispose();
+
+            Assert.Throws<ObjectDisposedException>(element.Lock);
+        }
+        finally
+        {
+            head?.Dispose();
+            tail?.Dispose();
+        }
     }
 
     [Fact]
     public void Unlock_AfterDispose_ShouldThrow()
     {
-        var element = new CatalogElement("x");
-        element.Dispose();
+        CatalogElement? head = null;
+        CatalogElement? tail = null;
 
-        Assert.Throws<ObjectDisposedException>(element.Unlock);
+        try
+        {
+            CatalogElement.CreateSentinels(out head, out tail);
+
+            var element = new CatalogElement("x", head, tail);
+            element.Dispose();
+
+            Assert.Throws<ObjectDisposedException>(element.Unlock);
+        }
+        finally
+        {
+            head?.Dispose();
+            tail?.Dispose();
+        }
     }
 }

@@ -16,11 +16,7 @@ internal sealed class Catalog : IDisposable
 
         _logMethod = logMethod;
         
-        _headSentinel = new CatalogElement(string.Empty);
-        _tailSentinel = new CatalogElement(string.Empty);
-        
-        _headSentinel.Next = _tailSentinel;
-        _tailSentinel.Previous = _headSentinel;
+        CatalogElement.CreateSentinels(out _headSentinel, out _tailSentinel);
     }
 
     public void Show()
@@ -40,19 +36,16 @@ internal sealed class Catalog : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, typeof(Catalog));
         ArgumentNullException.ThrowIfNull(newValue);
-
-        var newElement = new CatalogElement(newValue);
-
+        
         _headSentinel.Lock();
         var realElement = _headSentinel.Next;
-        realElement?.Lock();
+        realElement.Lock();
         
         try
         {
-            newElement.Next = realElement;
-            newElement.Previous = _headSentinel;
+            var newElement = new CatalogElement(newValue, realElement, _headSentinel);
             
-            if (realElement is not null)
+            if (realElement != _headSentinel)
             {
                 realElement.Previous = newElement;
             }
@@ -61,7 +54,7 @@ internal sealed class Catalog : IDisposable
         }
         finally
         {
-            realElement?.Unlock();
+            realElement.Unlock();
             _headSentinel.Unlock();
         }
     }
@@ -77,13 +70,11 @@ internal sealed class Catalog : IDisposable
             sorted = true;
 
             _headSentinel.Lock();
-            CatalogElement? current;
+            var current = _headSentinel.Next;
             
             try
             {
-                current = _headSentinel.Next;
-                
-                if (current == _tailSentinel || current is null)
+                if (current == _tailSentinel)
                 {
                     return;
                 }
@@ -95,15 +86,13 @@ internal sealed class Catalog : IDisposable
                 _headSentinel.Unlock();
             }
 
-            while (current is not null && current != _tailSentinel)
+            while (current != _tailSentinel)
             {
-                CatalogElement? next;
+                var next = current.Next;
                 
                 try
                 {
-                    next = current.Next;
-                    
-                    if (next == _tailSentinel || next is null)
+                    if (next == _tailSentinel)
                     {
                         current.Unlock();
                         break;
@@ -124,8 +113,8 @@ internal sealed class Catalog : IDisposable
                         var previous = current.Previous;
                         var nextNext = next.Next;
                         
-                        previous?.Lock();
-                        if (nextNext != _tailSentinel && nextNext is not null)
+                        previous.Lock();
+                        if (nextNext != _tailSentinel)
                         {
                             nextNext.Lock();
                         }
@@ -137,22 +126,22 @@ internal sealed class Catalog : IDisposable
                             current.Previous = next;
                             current.Next = nextNext;
 
-                            if (nextNext != _tailSentinel && nextNext is not null)
+                            if (nextNext != _tailSentinel)
                             {
                                 nextNext.Previous = current;
                             }
 
-                            previous!.Next = next;
+                            previous.Next = next;
 
                             sorted = false;
                         }
                         finally
                         {
-                            if (nextNext != _tailSentinel && nextNext is not null)
+                            if (nextNext != _tailSentinel)
                             {
                                 nextNext.Unlock();
                             }
-                            previous?.Unlock();
+                            previous.Unlock();
                         }
                         
                         next.Unlock();
@@ -178,7 +167,7 @@ internal sealed class Catalog : IDisposable
         ObjectDisposedException.ThrowIf(_disposed, typeof(Catalog));
 
         _headSentinel.Lock();
-        CatalogElement? cursor;
+        CatalogElement cursor;
         
         try
         {
@@ -189,7 +178,7 @@ internal sealed class Catalog : IDisposable
             _headSentinel.Unlock();
         }
 
-        while (cursor is not null && cursor != _tailSentinel)
+        while (cursor != _tailSentinel)
         {
             cursor.Lock();
 
@@ -266,7 +255,7 @@ internal sealed class Catalog : IDisposable
 
         var cursor = _headSentinel.Next;
 
-        while (cursor is not null && cursor != _tailSentinel)
+        while (cursor != _tailSentinel)
         {
             var next = cursor.Next;
 
