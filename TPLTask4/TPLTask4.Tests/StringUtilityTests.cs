@@ -7,10 +7,10 @@ public class StringUtilityTests
     [Fact]
     public void SplitToSubstrings_ShouldSplitCorrectly()
     {
-        const string input = "HelloWorld!";
-        const int substringLength = 3;
+        const string INPUT = "HelloWorld!";
+        const int SUBSTRING_LENGTH = 3;
 
-        var result = StringUtility.SplitToSubstrings(input, substringLength);
+        var result = StringUtility.SplitToSubstrings(INPUT, SUBSTRING_LENGTH);
 
         Assert.Equal(["Hel", "loW", "orl", "d!"], result);
     }
@@ -18,34 +18,38 @@ public class StringUtilityTests
     [Fact]
     public void SplitToSubstrings_StringShorterThanChunk_ReturnsWholeString()
     {
-        const string input = "Hi";
-        const int substringLength = 5;
+        const string INPUT = "Hi";
+        const int SUBSTRING_LENGTH = 5;
 
-        var result = StringUtility.SplitToSubstrings(input, substringLength);
+        var result = StringUtility.SplitToSubstrings(INPUT, SUBSTRING_LENGTH);
 
-        Assert.Single(result);
-        Assert.Equal("Hi", result.First());
+        var collection = result as string[] ?? result.ToArray();
+
+        Assert.Single(collection);
+        Assert.Equal("Hi", collection.First());
     }
 
     [Fact]
     public void SplitToSubstrings_StringEqualToChunk_ReturnsWholeString()
     {
-        const string input = "Hello";
-        const int substringLength = 5;
+        const string INPUT = "Hello";
+        const int SUBSTRING_LENGTH = 5;
 
-        var result = StringUtility.SplitToSubstrings(input, substringLength);
+        var result = StringUtility.SplitToSubstrings(INPUT, SUBSTRING_LENGTH);
 
-        Assert.Single(result);
-        Assert.Equal("Hello", result.First());
+        var collection = result as string[] ?? result.ToArray();
+        
+        Assert.Single(collection);
+        Assert.Equal("Hello", collection.First());
     }
 
     [Fact]
     public void SplitToSubstrings_LastChunkShorter_ShouldReturnCorrectly()
     {
-        const string input = "ABCDEFG";
-        const int substringLength = 3;
+        const string INPUT = "ABCDEFG";
+        const int SUBSTRING_LENGTH = 3;
 
-        var result = StringUtility.SplitToSubstrings(input, substringLength);
+        var result = StringUtility.SplitToSubstrings(INPUT, SUBSTRING_LENGTH);
 
         Assert.Equal(["ABC", "DEF", "G"], result);
     }
