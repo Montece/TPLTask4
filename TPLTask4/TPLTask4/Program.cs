@@ -15,11 +15,15 @@ Console.CancelKeyPress += (_, _) =>
 
 catalog.BeginSortProcess();
 
-Monitor.Enter(isWorkingLock);
-
-while (isWorking)
+while (true)
 {
-    Monitor.Exit(isWorkingLock);
+    lock (isWorkingLock)
+    {
+        if (!isWorking)
+        {
+            break;
+        }
+    }
 
     Console.Write("Enter text: ");
     var rawInput = Console.ReadLine();
@@ -48,8 +52,6 @@ while (isWorking)
             catalog.Add(input);
         }
     }
-
-    Monitor.Enter(isWorkingLock);
 }
 
 catalog.EndSortProcess();
