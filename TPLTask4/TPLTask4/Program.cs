@@ -44,8 +44,8 @@ while (true)
     }
     else
     {
-        const int MAX_COUNT = 80;
-        var inputs = StringUtility.SplitToSubstrings(rawInput, MAX_COUNT);
+        const int MAX_SUBSTRING_LENGTH = 80;
+        var inputs = StringUtility.SplitToSubstrings(rawInput, MAX_SUBSTRING_LENGTH);
 
         foreach (var input in inputs)
         {
