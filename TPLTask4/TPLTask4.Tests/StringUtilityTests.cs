@@ -53,12 +53,12 @@ public class StringUtilityTests
     [Fact]
     public void SplitToSubstrings_EmptyString_ThrowsArgumentNullException()
     {
-        Assert.Throws<ArgumentNullException>(() => StringUtility.SplitToSubstrings(string.Empty, 3));
+        Assert.Throws<ArgumentNullException>(() => StringUtility.SplitToSubstrings(string.Empty, 3).ToList());
     }
 
     [Fact]
     public void SplitToSubstrings_NullString_ThrowsArgumentNullException()
     {
-        Assert.Throws<ArgumentNullException>(() => StringUtility.SplitToSubstrings(null!, 3));
+        Assert.Throws<ArgumentNullException>(() => StringUtility.SplitToSubstrings(null!, 3).ToList());
     }
 }

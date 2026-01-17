@@ -2,27 +2,31 @@
 
 internal static class StringUtility
 {
-    public static List<string> SplitToSubstrings(string input, int substringLength)
+    internal static IEnumerable<string> SplitToSubstrings(string input, int substringLength)
     {
         if (string.IsNullOrEmpty(input))
         {
             throw new ArgumentNullException(nameof(input));
         }
 
+        if (substringLength <= 0)
+        {
+            throw new ArgumentException("substringLength must be greater than zero", nameof(substringLength));
+        }
+
         if (input.Length <= substringLength)
         {
-            return [ input ];
+            yield return input;
         }
-
-        var substrings = new List<string>();
-
-        for (var i = 0; i < input.Length; i += substringLength)
+        else
         {
-            var length = Math.Min(substringLength, input.Length - i);
-            var substring = input.Substring(i, length);
-            substrings.Add(substring);
-        }
+            for (var i = 0; i < input.Length; i += substringLength)
+            {
+                var length = Math.Min(substringLength, input.Length - i);
+                var substring = input.Substring(i, length);
 
-        return substrings;
+                yield return substring;
+            }
+        }
     }
 }
