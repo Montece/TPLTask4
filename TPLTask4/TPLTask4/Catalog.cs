@@ -166,9 +166,10 @@ internal sealed class Catalog : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, typeof(Catalog));
 
-        _headSentinel.Lock();
         CatalogElement cursor;
-        
+
+        _headSentinel.Lock();
+
         try
         {
             cursor = _headSentinel.Next;
@@ -178,16 +179,26 @@ internal sealed class Catalog : IDisposable
             _headSentinel.Unlock();
         }
 
-        while (cursor != _tailSentinel)
+        try
         {
-            cursor.Lock();
+            while (cursor != _tailSentinel)
+            {
+                cursor.Lock();
 
-            yield return cursor;
+                yield return cursor;
 
-            var next = cursor.Next;
-            cursor.Unlock();
+                var next = cursor.Next;
+                cursor.Unlock();
 
-            cursor = next;
+                cursor = next;
+            }
+        }
+        finally
+        {
+            if (cursor != _tailSentinel)
+            {
+                cursor.Unlock();
+            }
         }
     }
 
